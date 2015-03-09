@@ -12,8 +12,13 @@ namespace JapaneseCrossword
         public SolutionStatus Solve(string inputFilePath, string outputFilePath)
         {
             this.crossword = ReadCrosswordFromFile(inputFilePath);
-            for (int i = 0; i < crossword.columnsCount; i++)
-                SetNewPosition(i, false);
+            var queue = new Queue<Action>();
+            for (int i = 0; i < crossword.rowsCount; i++)
+                SetNewPosition(i, false, queue);
+            while (queue.Count != 0)
+            {
+                queue.Dequeue()();
+            }
             for (int i = 0; i < crossword.field.GetLength(0); i++)
             {
                 for (int j = 0; j < crossword.field.GetLength(1); j++)
@@ -29,7 +34,7 @@ namespace JapaneseCrossword
             throw new NotImplementedException();
         }
 
-        public void SetNewPosition(int rowNumber, bool isColumn)
+        public void SetNewPosition(int rowNumber, bool isColumn, Queue<Action> queue)
         {
             if (isColumn)
             {
@@ -43,8 +48,9 @@ namespace JapaneseCrossword
                 for (int i = 0; i < crossword.rowsCount; i++)
                     if (crossword.field[i, rowNumber] == CellStatus.Unknown && crossword.field[i, rowNumber] != row[i])
                     {
+                        var lol = i;
                         crossword.field[i, rowNumber] = row[i];
-                        //запустить рекурсию
+                        queue.Enqueue(() => SetNewPosition(lol, false, queue));
                     }
             }
             else
@@ -59,8 +65,9 @@ namespace JapaneseCrossword
                 for (int i = 0; i < crossword.columnsCount; i++)
                     if (crossword.field[rowNumber, i] == CellStatus.Unknown && crossword.field[rowNumber, i] != row[i])
                     {
+                        var lol = i;
                         crossword.field[rowNumber, i] = row[i];
-                        //запустить рекурсию
+                        queue.Enqueue(() => SetNewPosition(lol, true, queue));
                     }
             }
         }
