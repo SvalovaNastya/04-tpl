@@ -12,47 +12,96 @@ namespace JapaneseCrossword
         public SolutionStatus Solve(string inputFilePath, string outputFilePath)
         {
             this.crossword = ReadCrosswordFromFile(inputFilePath);
-            FillUnknownCells(0);
+            for (int i = 0; i < crossword.columnsCount; i++)
+                SetNewPosition(i, false);
+            for (int i = 0; i < crossword.field.GetLength(0); i++)
+            {
+                for (int j = 0; j < crossword.field.GetLength(1); j++)
+                    if (crossword.field[i, j] == CellStatus.Fill)
+                        Console.Write('█');
+                    else if (crossword.field[i, j] == CellStatus.Empty)
+                        Console.Write('*');
+                    else
+                        Console.Write('.')
+                ;
+                Console.WriteLine();
+            }
             throw new NotImplementedException();
         }
 
-        public void FillUnknownCells(int rowNumber)
+        public void SetNewPosition(int rowNumber, bool isColumn)
         {
-            var possibleFill = new bool[crossword.columnsCount];
-            var possibleEmpty = new bool[crossword.columnsCount];
-            CanArrangeBlock(-1, -1, rowNumber, possibleFill, possibleEmpty);
-            for (int i = 0; i < crossword.columnsCount; i++)
+            if (isColumn)
             {
-                if (possibleEmpty[i] != possibleFill[i])
-                    if (possibleEmpty[i])
-                        crossword.field[rowNumber, i] = CellStatus.Empty;
-                    else
-                        crossword.field[rowNumber, i] = CellStatus.Fill;
+                var row = new CellStatus[crossword.rowsCount];
+                for (int i = 0; i < crossword.rowsCount; i++)
+                    row[i] = crossword.field[i, rowNumber];
+                var rowNumbers = new int[crossword.numbersInColumns[rowNumber].Count];
+                for (int i = 0; i < crossword.numbersInColumns[rowNumber].Count; i++)
+                    rowNumbers[i] = crossword.numbersInColumns[rowNumber][i];
+                FillUnknownCells(row, rowNumbers);
+                for (int i = 0; i < crossword.rowsCount; i++)
+                    if (crossword.field[i, rowNumber] == CellStatus.Unknown && crossword.field[i, rowNumber] != row[i])
+                    {
+                        crossword.field[i, rowNumber] = row[i];
+                        //запустить рекурсию
+                    }
+            }
+            else
+            {
+                var row = new CellStatus[crossword.columnsCount];
+                for (int i = 0; i < crossword.columnsCount; i++)
+                    row[i] = crossword.field[rowNumber, i];
+                var rowNumbers = new int[crossword.numbersInRows[rowNumber].Count];
+                for (int i = 0; i < crossword.numbersInRows[rowNumber].Count; i++)
+                    rowNumbers[i] = crossword.numbersInRows[rowNumber][i];
+                FillUnknownCells(row, rowNumbers);
+                for (int i = 0; i < crossword.columnsCount; i++)
+                    if (crossword.field[rowNumber, i] == CellStatus.Unknown && crossword.field[rowNumber, i] != row[i])
+                    {
+                        crossword.field[rowNumber, i] = row[i];
+                        //запустить рекурсию
+                    }
             }
         }
 
-        public bool CanArrangeBlock(int blockIndex, int startIndex, int rowNumber, bool[] possibleFill, bool[] possibleEmpty)
+        public void FillUnknownCells(CellStatus[] row, int[] rowNumbers)
+        {
+            var possibleFill = new bool[row.Length];
+            var possibleEmpty = new bool[row.Length];
+            CanArrangeBlock(-1, -1, possibleFill, possibleEmpty, row, rowNumbers);
+            for (int i = 0; i < row.Length; i++)
+            {
+                if (possibleEmpty[i] != possibleFill[i])
+                    if (possibleEmpty[i])
+                        row[i] = CellStatus.Empty;
+                    else
+                        row[i] = CellStatus.Fill;
+            }
+        }
+
+        public bool CanArrangeBlock(int blockIndex, int startIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
         {
             var blockLength = 0;
             if (blockIndex != -1)
             {
-                blockLength = crossword.numbersInRows[rowNumber][blockIndex];
+                blockLength = rowNumbers[blockIndex];
                 for (int i = startIndex; i < startIndex + blockLength; i++)
                 {
-                    if (crossword.field[rowNumber, i] == CellStatus.Empty)
+                    if (row[i] == CellStatus.Empty)
                         return false;
                 }
             }
-            if (blockIndex < crossword.numbersInRows[rowNumber].Count - 1)
+            if (blockIndex < rowNumbers.Length - 1)
             {
                 bool res = false;
                 for (int startNext = startIndex + blockLength + 1;
-                    startNext < crossword.columnsCount - crossword.numbersInRows[rowNumber][blockIndex + 1] + 1;
+                    startNext < row.Length - rowNumbers[blockIndex + 1] + 1;
                     startNext++)
                 {
-                    if(startNext != 0 && crossword.field[rowNumber, startNext - 1] == CellStatus.Fill)
+                    if(startNext != 0 && row[startNext - 1] == CellStatus.Fill)
                         break;
-                    if (CanArrangeBlock(blockIndex + 1, startNext, rowNumber, possibleFill, possibleEmpty))
+                    if (CanArrangeBlock(blockIndex + 1, startNext, possibleFill, possibleEmpty, row, rowNumbers))
                     {
                         res = true;
                         if (blockIndex != -1)
@@ -71,14 +120,14 @@ namespace JapaneseCrossword
                 }
                 return res;
             }
-            for(int i = startIndex + blockLength; 
-                i < crossword.columnsCount; 
+            for(int i = startIndex + blockLength;
+                i < row.Length; 
                 i++)
-                if (crossword.field[rowNumber, i] == CellStatus.Fill)
+                if (row[i] == CellStatus.Fill)
                     return false;
             for (int i = startIndex; i < startIndex + blockLength; i++)
                 possibleFill[i] = true;
-            for (int i = startIndex + blockLength; i < crossword.columnsCount; i++)
+            for (int i = startIndex + blockLength; i < row.Length; i++)
                 possibleEmpty[i] = true;
             return true;
         }
