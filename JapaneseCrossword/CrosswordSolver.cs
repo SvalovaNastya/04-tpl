@@ -18,61 +18,68 @@ namespace JapaneseCrossword
 
         public void FillUnknownCells(int rowNumber)
         {
+            var possibleFill = new bool[crossword.columnsCount];
+            var possibleEmpty = new bool[crossword.columnsCount];
+            CanArrangeBlock(-1, -1, rowNumber, possibleFill, possibleEmpty);
             for (int i = 0; i < crossword.columnsCount; i++)
             {
-                var possibleFill = new bool[crossword.columnsCount];
-                var possibleEmpty = new bool[crossword.columnsCount];
-                GetAllPossibleArrangements(rowNumber, ref possibleFill, ref possibleEmpty);
                 if (possibleEmpty[i] != possibleFill[i])
-                    if(possibleEmpty[i])
+                    if (possibleEmpty[i])
                         crossword.field[rowNumber, i] = CellStatus.Empty;
                     else
                         crossword.field[rowNumber, i] = CellStatus.Fill;
             }
         }
 
-        public void GetAllPossibleArrangements(int rowNumber, ref bool[] fill, ref bool[] empty)
+        public bool CanArrangeBlock(int blockIndex, int startIndex, int rowNumber, bool[] possibleFill, bool[] possibleEmpty)
         {
-            for (int i = 0; i < crossword.columnsCount - crossword.numbersInRows[rowNumber][0]; i++)
-                CanArrangeBlock(0, i, rowNumber, ref fill, ref empty);
-        }
-
-        public bool CanArrangeBlock(int blockIndex, int startIndex, int rowNumber, ref bool[] fill, ref bool[] empty)
-        {
-            for (int i = startIndex; i < startIndex + crossword.numbersInRows[rowNumber][blockIndex]; i++)
+            var blockLength = 0;
+            if (blockIndex != -1)
             {
-                if (crossword.field[rowNumber, i] == CellStatus.Empty)
-                    return false;
+                blockLength = crossword.numbersInRows[rowNumber][blockIndex];
+                for (int i = startIndex; i < startIndex + blockLength; i++)
+                {
+                    if (crossword.field[rowNumber, i] == CellStatus.Empty)
+                        return false;
+                }
             }
             if (blockIndex < crossword.numbersInRows[rowNumber].Count - 1)
             {
                 bool res = false;
-                for (int startNext = startIndex + crossword.numbersInRows[rowNumber][blockIndex] + 1;
+                for (int startNext = startIndex + blockLength + 1;
                     startNext < crossword.columnsCount - crossword.numbersInRows[rowNumber][blockIndex + 1] + 1;
                     startNext++)
                 {
-                    if(crossword.field[rowNumber, startNext - 1] == CellStatus.Fill)
+                    if(startNext != 0 && crossword.field[rowNumber, startNext - 1] == CellStatus.Fill)
                         break;
-                    if (CanArrangeBlock(blockIndex + 1, startNext, rowNumber, ref fill, ref empty))
+                    if (CanArrangeBlock(blockIndex + 1, startNext, rowNumber, possibleFill, possibleEmpty))
                     {
                         res = true;
-                        for (int i = startIndex; i < startIndex + crossword.numbersInRows[rowNumber][blockIndex]; i++)
-                            fill[i] = true;
-                        for (int i = startIndex + crossword.numbersInRows[rowNumber][blockIndex]; i < startNext; i++)
-                            empty[i] = true;
+                        if (blockIndex != -1)
+                        {
+                            for (int i = startIndex; i < startIndex + blockLength; i++)
+                                possibleFill[i] = true;
+                            for (int i = startIndex + blockLength; i < startNext; i++)
+                                possibleEmpty[i] = true;
+                        }
+                        else
+                        {
+                            for (int i = 0; i < startNext; i++)
+                                possibleEmpty[i] = true;
+                        }
                     }
                 }
                 return res;
             }
-            for(int i = startIndex + crossword.numbersInRows[rowNumber][blockIndex]; 
-                i < crossword.numbersInRows[rowNumber].Count; 
+            for(int i = startIndex + blockLength; 
+                i < crossword.columnsCount; 
                 i++)
                 if (crossword.field[rowNumber, i] == CellStatus.Fill)
                     return false;
-            for ( int i = startIndex; i < startIndex + crossword.numbersInRows[rowNumber][blockIndex]; i++)
-                fill[i] = true;
-            for (int i = startIndex + crossword.numbersInRows[rowNumber][blockIndex]; i < crossword.columnsCount; i++)
-                empty[i] = true;
+            for (int i = startIndex; i < startIndex + blockLength; i++)
+                possibleFill[i] = true;
+            for (int i = startIndex + blockLength; i < crossword.columnsCount; i++)
+                possibleEmpty[i] = true;
             return true;
         }
 
