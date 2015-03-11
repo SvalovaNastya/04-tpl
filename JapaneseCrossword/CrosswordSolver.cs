@@ -1,78 +1,61 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using NUnit.Framework;
 
 namespace JapaneseCrossword
 {
     public class CrosswordSolver : ICrosswordSolver
     {
-        public Crossword crossword;
+        private Crossword crossword;
         public SolutionStatus Solve(string inputFilePath, string outputFilePath)
         {
-            this.crossword = ReadCrosswordFromFile(inputFilePath);
-            var queue = new Queue<Action>();
-            for (int i = 0; i < crossword.rowsCount; i++)
+            crossword = Crossword.ReadCrosswordFromFile(inputFilePath);
+            var queue = new Queue<Tuple<int, bool>>();
+            for (int i = 0; i < crossword.RowsCount; i++)
                 SetNewPosition(i, false, queue);
             while (queue.Count != 0)
             {
-                queue.Dequeue()();
+                var t = queue.Dequeue();
+                SetNewPosition(t.Item1, t.Item2, queue);
             }
-            for (int i = 0; i < crossword.field.GetLength(0); i++)
-            {
-                for (int j = 0; j < crossword.field.GetLength(1); j++)
-                    if (crossword.field[i, j] == CellStatus.Fill)
-                        Console.Write('█');
-                    else if (crossword.field[i, j] == CellStatus.Empty)
-                        Console.Write('*');
-                    else
-                        Console.Write('.')
-                ;
-                Console.WriteLine();
-            }
-            throw new NotImplementedException();
+            crossword.WriteCrosswordToFile(outputFilePath);
+            return SolutionStatus.BadInputFilePath;
         }
 
-        public void SetNewPosition(int rowNumber, bool isColumn, Queue<Action> queue)
+        private bool ShouldRefreshPerpendicularLine(int lineIdx, int i, CellStatus linei, bool isColumn)
         {
-            if (isColumn)
+            var cell = isColumn ? crossword.Field[i, lineIdx] : crossword.Field[lineIdx, i];
+            return cell == CellStatus.Unknown && cell != linei;
+        }
+
+        private void SetNewPosition(int lineIdx, bool isColumn, Queue<Tuple<int, bool>> queue)
+        {
+            var line = isColumn ? crossword.GetColumnCells(lineIdx) : crossword.GetRowCells(lineIdx);
+            var numbersIsLine = isColumn
+                ? crossword.NumbersInColumns[lineIdx].ToArray()
+                : crossword.NumbersInRows[lineIdx].ToArray();
+            FillUnknownCells(line, numbersIsLine);
+            for (int i = 0; i < line.Length; i++)
             {
-                var row = new CellStatus[crossword.rowsCount];
-                for (int i = 0; i < crossword.rowsCount; i++)
-                    row[i] = crossword.field[i, rowNumber];
-                var rowNumbers = new int[crossword.numbersInColumns[rowNumber].Count];
-                for (int i = 0; i < crossword.numbersInColumns[rowNumber].Count; i++)
-                    rowNumbers[i] = crossword.numbersInColumns[rowNumber][i];
-                FillUnknownCells(row, rowNumbers);
-                for (int i = 0; i < crossword.rowsCount; i++)
-                    if (crossword.field[i, rowNumber] == CellStatus.Unknown && crossword.field[i, rowNumber] != row[i])
+                if (ShouldRefreshPerpendicularLine(lineIdx, i, line[i], isColumn))
+                {
+                    Tuple<int, bool> t;
+                    if (isColumn)
                     {
-                        var lol = i;
-                        crossword.field[i, rowNumber] = row[i];
-                        queue.Enqueue(() => SetNewPosition(lol, false, queue));
+                        t = Tuple.Create(i, false);
+                        crossword.Field[i, lineIdx] = line[i];
                     }
-            }
-            else
-            {
-                var row = new CellStatus[crossword.columnsCount];
-                for (int i = 0; i < crossword.columnsCount; i++)
-                    row[i] = crossword.field[rowNumber, i];
-                var rowNumbers = new int[crossword.numbersInRows[rowNumber].Count];
-                for (int i = 0; i < crossword.numbersInRows[rowNumber].Count; i++)
-                    rowNumbers[i] = crossword.numbersInRows[rowNumber][i];
-                FillUnknownCells(row, rowNumbers);
-                for (int i = 0; i < crossword.columnsCount; i++)
-                    if (crossword.field[rowNumber, i] == CellStatus.Unknown && crossword.field[rowNumber, i] != row[i])
+                    else
                     {
-                        var lol = i;
-                        crossword.field[rowNumber, i] = row[i];
-                        queue.Enqueue(() => SetNewPosition(lol, true, queue));
+                        t = Tuple.Create(i, true);
+                        crossword.Field[lineIdx, i] = line[i];
                     }
+                    if (!queue.Contains(t))
+                        queue.Enqueue(t);
+                }
             }
         }
 
-        public void FillUnknownCells(CellStatus[] row, int[] rowNumbers)
+        private void FillUnknownCells(CellStatus[] row, int[] rowNumbers)
         {
             var possibleFill = new bool[row.Length];
             var possibleEmpty = new bool[row.Length];
@@ -87,7 +70,7 @@ namespace JapaneseCrossword
             }
         }
 
-        public bool CanArrangeBlock(int blockIndex, int startIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
+        private bool CanArrangeBlock(int blockIndex, int startIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
         {
             var blockLength = 0;
             if (blockIndex != -1)
@@ -113,10 +96,8 @@ namespace JapaneseCrossword
                         res = true;
                         if (blockIndex != -1)
                         {
-                            for (int i = startIndex; i < startIndex + blockLength; i++)
-                                possibleFill[i] = true;
-                            for (int i = startIndex + blockLength; i < startNext; i++)
-                                possibleEmpty[i] = true;
+                            RefreshState(startIndex, possibleFill, startIndex + blockLength);
+                            RefreshState(startIndex + blockLength, possibleEmpty, startNext);
                         }
                         else
                         {
@@ -132,40 +113,15 @@ namespace JapaneseCrossword
                 i++)
                 if (row[i] == CellStatus.Fill)
                     return false;
-            for (int i = startIndex; i < startIndex + blockLength; i++)
-                possibleFill[i] = true;
-            for (int i = startIndex + blockLength; i < row.Length; i++)
-                possibleEmpty[i] = true;
+            RefreshState(startIndex, possibleFill, startIndex + blockLength);
+            RefreshState(startIndex + blockLength, possibleEmpty, row.Length);
             return true;
         }
 
-        public Crossword ReadCrosswordFromFile(string inputFilePath)
+        private static void RefreshState(int startIndex, bool[] possibleSmth, int length)
         {
-            var discriberDict = new Dictionary<string, List<List<int>>>();
-            var currentKey = "";
-            var listsCount = 0;
-            foreach (var line in File.ReadAllLines(inputFilePath))
-            {
-                var splettedLine = line.Split(' ').ToArray();
-                int temp;
-                if (!int.TryParse(splettedLine[0], out temp))
-                {
-                    splettedLine = line.Split(':').ToArray();
-                    currentKey = splettedLine[0];
-                    discriberDict.Add(currentKey, new List<List<int>>());
-                    listsCount = 0;
-                }
-                else
-                {
-                    discriberDict[currentKey].Add(new List<int>());
-                    listsCount++;
-                    foreach (var numb in splettedLine)
-                    {
-                        discriberDict[currentKey][listsCount - 1].Add(int.Parse(numb));
-                    }
-                }
-            }
-            return new Crossword(discriberDict["rows"].Count, discriberDict["columns"].Count, discriberDict["rows"], discriberDict["columns"]);
+            for (int i = startIndex; i < length; i++)
+                possibleSmth[i] = true;
         }
     }
 }
