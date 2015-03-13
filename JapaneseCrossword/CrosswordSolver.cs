@@ -6,19 +6,30 @@ namespace JapaneseCrossword
     public class CrosswordSolver : ICrosswordSolver
     {
         private Crossword crossword;
+        private Queue<Tuple<int, bool>> tasksQueue; 
+
         public SolutionStatus Solve(string inputFilePath, string outputFilePath)
         {
-            crossword = Crossword.ReadCrosswordFromFile(inputFilePath);
-            var queue = new Queue<Tuple<int, bool>>();
-            for (int i = 0; i < crossword.RowsCount; i++)
-                SetNewPosition(i, false, queue);
-            while (queue.Count != 0)
+            try { crossword = Crossword.ReadCrosswordFromFile(inputFilePath); }
+            catch { return SolutionStatus.BadInputFilePath; }
+            tasksQueue = new Queue<Tuple<int, bool>>();
+            try
             {
-                var t = queue.Dequeue();
-                SetNewPosition(t.Item1, t.Item2, queue);
+                for (int i = 0; i < crossword.RowsCount; i++)
+                    SetNewPosition(i, false);
+                while (tasksQueue.Count != 0)
+                {
+                    var t = tasksQueue.Dequeue();
+                    SetNewPosition(t.Item1, t.Item2);
+                }
             }
-            crossword.WriteCrosswordToFile(outputFilePath);
-            return SolutionStatus.BadInputFilePath;
+            catch
+            {
+                return SolutionStatus.IncorrectCrossword;
+            }
+            try { crossword.WriteCrosswordToFile(outputFilePath); }
+            catch { return SolutionStatus.BadOutputFilePath; }
+            return SolutionStatus.Solved;
         }
 
         private bool ShouldRefreshPerpendicularLine(int lineIdx, int i, CellStatus linei, bool isColumn)
@@ -27,7 +38,7 @@ namespace JapaneseCrossword
             return cell == CellStatus.Unknown && cell != linei;
         }
 
-        private void SetNewPosition(int lineIdx, bool isColumn, Queue<Tuple<int, bool>> queue)
+        private void SetNewPosition(int lineIdx, bool isColumn)
         {
             var line = isColumn ? crossword.GetColumnCells(lineIdx) : crossword.GetRowCells(lineIdx);
             var numbersIsLine = isColumn
@@ -49,8 +60,8 @@ namespace JapaneseCrossword
                         t = Tuple.Create(i, true);
                         crossword.Field[lineIdx, i] = line[i];
                     }
-                    if (!queue.Contains(t))
-                        queue.Enqueue(t);
+                    if (!tasksQueue.Contains(t))
+                        tasksQueue.Enqueue(t);
                 }
             }
         }
@@ -76,45 +87,46 @@ namespace JapaneseCrossword
             if (blockIndex != -1)
             {
                 blockLength = rowNumbers[blockIndex];
-                for (int i = startIndex; i < startIndex + blockLength; i++)
-                {
-                    if (row[i] == CellStatus.Empty)
-                        return false;
-                }
+                if (!NotHaveSmthCells(startIndex, row, startIndex + blockLength, CellStatus.Empty))
+                    return false;
             }
             if (blockIndex < rowNumbers.Length - 1)
             {
                 bool res = false;
-                for (int startNext = startIndex + blockLength + 1;
-                    startNext < row.Length - rowNumbers[blockIndex + 1] + 1;
-                    startNext++)
+                int afterBlockIdx = startIndex + blockLength + 1;
+                int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
+                for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
                 {
-                    if(startNext != 0 && row[startNext - 1] == CellStatus.Fill)
+                    if(nextStart != 0 && row[nextStart - 1] == CellStatus.Fill)
                         break;
-                    if (CanArrangeBlock(blockIndex + 1, startNext, possibleFill, possibleEmpty, row, rowNumbers))
+                    if (CanArrangeBlock(blockIndex + 1, nextStart, possibleFill, possibleEmpty, row, rowNumbers))
                     {
                         res = true;
                         if (blockIndex != -1)
                         {
                             RefreshState(startIndex, possibleFill, startIndex + blockLength);
-                            RefreshState(startIndex + blockLength, possibleEmpty, startNext);
+                            RefreshState(startIndex + blockLength, possibleEmpty, nextStart);
                         }
                         else
-                        {
-                            for (int i = 0; i < startNext; i++)
-                                possibleEmpty[i] = true;
-                        }
+                            RefreshState(0, possibleEmpty, nextStart);
                     }
                 }
                 return res;
             }
-            for(int i = startIndex + blockLength;
-                i < row.Length; 
-                i++)
-                if (row[i] == CellStatus.Fill)
+            if (!NotHaveSmthCells(startIndex + blockLength, row, row.Length, CellStatus.Fill))
                     return false;
             RefreshState(startIndex, possibleFill, startIndex + blockLength);
             RefreshState(startIndex + blockLength, possibleEmpty, row.Length);
+            return true;
+        }
+
+        private static bool NotHaveSmthCells(int startIndex, CellStatus[] row, int length, CellStatus status)
+        {
+            for (int i = startIndex; i < length; i++)
+            {
+                if (row[i] == status)
+                    return false;
+            }
             return true;
         }
 

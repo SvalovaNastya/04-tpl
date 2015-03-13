@@ -14,16 +14,14 @@ namespace JapaneseCrossword
 
     public class Crossword
     {
-        public int RowsCount { get; private set; }
-        public int ColumnsCount { get; private set; }
+        public int RowsCount { get { return Field.GetLength(0); } }
+        public int ColumnsCount { get { return Field.GetLength(1); } }
         public readonly List<List<int>> NumbersInRows;
         public readonly List<List<int>> NumbersInColumns;
         public readonly CellStatus[,] Field;
 
         public Crossword(int rowsCount, int columnsCount, List<List<int>> numbersInRows, List<List<int>> numbersInColumns)
         {
-            RowsCount = rowsCount;
-            ColumnsCount = columnsCount;
             NumbersInRows = new List<List<int>>();
             NumbersInColumns = new List<List<int>>();
             for (int i = 0; i < numbersInRows.Count(); i++)
@@ -90,7 +88,7 @@ namespace JapaneseCrossword
                 var line = new StringBuilder();
                 for (int j = 0; j < Field.GetLength(1); j++)
                     if (Field[i, j] == CellStatus.Fill)
-                        line.Append('█');
+                        line.Append('*');//('█');
                     else if (Field[i, j] == CellStatus.Empty)
                         line.Append('.');
                     else
