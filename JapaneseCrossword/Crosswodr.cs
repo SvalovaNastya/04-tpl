@@ -88,7 +88,7 @@ namespace JapaneseCrossword
                 var line = new StringBuilder();
                 for (int j = 0; j < Field.GetLength(1); j++)
                     if (Field[i, j] == CellStatus.Fill)
-                        line.Append('*');//('█');
+                        line.Append('█');//('*');
                     else if (Field[i, j] == CellStatus.Empty)
                         line.Append('.');
                     else

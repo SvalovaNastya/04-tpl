@@ -70,7 +70,9 @@ namespace JapaneseCrossword
         {
             var possibleFill = new bool[row.Length];
             var possibleEmpty = new bool[row.Length];
-            CanArrangeBlock(-1, -1, possibleFill, possibleEmpty, row, rowNumbers);
+//            CanArrangeBlock(-1, -1, possibleFill, possibleEmpty, row, rowNumbers);
+            for(int i = 0; i < row.Length - rowNumbers[0]; i++)
+                CanArrangeBlock(0, i, -1, possibleFill, possibleEmpty, row, rowNumbers);
             for (int i = 0; i < row.Length; i++)
             {
                 if (possibleEmpty[i] != possibleFill[i])
@@ -81,15 +83,29 @@ namespace JapaneseCrossword
             }
         }
 
-        private bool CanArrangeBlock(int blockIndex, int startIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
+        private bool Check(int left , int right , CellStatus badCelltype, CellStatus[] row)
         {
-            var blockLength = 0;
-            if (blockIndex != -1)
+            for (int i = left; i < right; i++)
             {
-                blockLength = rowNumbers[blockIndex];
-                if (!NotHaveSmthCells(startIndex, row, startIndex + blockLength, CellStatus.Empty))
+                if (row[i] == badCelltype)
                     return false;
             }
+            return true;
+        }
+
+        private void Draw(int left, int right, bool[] possibleCelltype)
+        {
+            for (int i = left; i < right; i++)
+                possibleCelltype[i] = true;
+        }
+
+        private bool CanArrangeBlock(int blockIndex, int startIndex, int previousEndIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
+        {
+            var blockLength = rowNumbers[blockIndex];
+            if (!Check(startIndex, startIndex + blockLength, CellStatus.Empty, row))
+                return false;
+            if (!Check(previousEndIndex + 1, startIndex, CellStatus.Fill, row))
+                return false;
             if (blockIndex < rowNumbers.Length - 1)
             {
                 bool res = false;
@@ -97,27 +113,57 @@ namespace JapaneseCrossword
                 int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
                 for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
                 {
-                    if(nextStart != 0 && row[nextStart - 1] == CellStatus.Fill)
-                        break;
-                    if (CanArrangeBlock(blockIndex + 1, nextStart, possibleFill, possibleEmpty, row, rowNumbers))
+                    if (CanArrangeBlock(blockIndex + 1, nextStart, startIndex + blockLength - 1, possibleFill, possibleEmpty, row, rowNumbers))
                     {
                         res = true;
-                        if (blockIndex != -1)
-                        {
-                            RefreshState(startIndex, possibleFill, startIndex + blockLength);
-                            RefreshState(startIndex + blockLength, possibleEmpty, nextStart);
-                        }
-                        else
-                            RefreshState(0, possibleEmpty, nextStart);
+                        Draw(startIndex, startIndex + blockLength, possibleFill);
+                        Draw(previousEndIndex + 1, startIndex, possibleEmpty);
                     }
                 }
                 return res;
             }
-            if (!NotHaveSmthCells(startIndex + blockLength, row, row.Length, CellStatus.Fill))
-                    return false;
-            RefreshState(startIndex, possibleFill, startIndex + blockLength);
-            RefreshState(startIndex + blockLength, possibleEmpty, row.Length);
+            if (!Check(startIndex + blockLength, row.Length, CellStatus.Fill, row))
+                return false;
+            Draw(startIndex + blockLength, row.Length, possibleEmpty);
+            Draw(startIndex, startIndex + blockLength, possibleFill);
+            Draw(previousEndIndex + 1, startIndex, possibleEmpty);
             return true;
+
+//            var blockLength = 0;
+//            if (blockIndex != -1)
+//            {
+//                blockLength = rowNumbers[blockIndex];
+//                if (!NotHaveSmthCells(startIndex, row, startIndex + blockLength, CellStatus.Empty))
+//                    return false;
+//            }
+//            if (blockIndex < rowNumbers.Length - 1)
+//            {
+//                bool res = false;
+//                int afterBlockIdx = startIndex + blockLength + 1;
+//                int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
+//                for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
+//                {
+//                    if(nextStart != 0 && row[nextStart - 1] == CellStatus.Fill)
+//                        break;
+//                    if (CanArrangeBlock(blockIndex + 1, nextStart, possibleFill, possibleEmpty, row, rowNumbers))
+//                    {
+//                        res = true;
+//                        if (blockIndex != -1)
+//                        {
+//                            RefreshState(startIndex, possibleFill, startIndex + blockLength);
+//                            RefreshState(startIndex + blockLength, possibleEmpty, nextStart);
+//                        }
+//                        else
+//                            RefreshState(0, possibleEmpty, nextStart);
+//                    }
+//                }
+//                return res;
+//            }
+//            if (!NotHaveSmthCells(startIndex + blockLength, row, row.Length, CellStatus.Fill))
+//                    return false;
+//            RefreshState(startIndex, possibleFill, startIndex + blockLength);
+//            RefreshState(startIndex + blockLength, possibleEmpty, row.Length);
+//            return true;
         }
 
         private static bool NotHaveSmthCells(int startIndex, CellStatus[] row, int length, CellStatus status)
