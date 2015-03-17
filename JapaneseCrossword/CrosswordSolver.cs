@@ -71,8 +71,8 @@ namespace JapaneseCrossword
             var possibleFill = new bool[row.Length];
             var possibleEmpty = new bool[row.Length];
 //            CanArrangeBlock(-1, -1, possibleFill, possibleEmpty, row, rowNumbers);
-            for(int i = 0; i < row.Length - rowNumbers[0]; i++)
-                CanArrangeBlock(0, i, -1, possibleFill, possibleEmpty, row, rowNumbers);
+            for(int i = 0; i < row.Length - rowNumbers[0] + 1; i++)
+                CanArrangeBlock(0, i, 0, possibleFill, possibleEmpty, row, rowNumbers);
             for (int i = 0; i < row.Length; i++)
             {
                 if (possibleEmpty[i] != possibleFill[i])
@@ -83,7 +83,7 @@ namespace JapaneseCrossword
             }
         }
 
-        private bool Check(int left , int right , CellStatus badCelltype, CellStatus[] row)
+        private bool CheckBadCellsAbscence(int left , int right , CellStatus badCelltype, CellStatus[] row)
         {
             for (int i = left; i < right; i++)
             {
@@ -102,32 +102,32 @@ namespace JapaneseCrossword
         private bool CanArrangeBlock(int blockIndex, int startIndex, int previousEndIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
         {
             var blockLength = rowNumbers[blockIndex];
-            if (!Check(startIndex, startIndex + blockLength, CellStatus.Empty, row))
+            if (!CheckBadCellsAbscence(startIndex, startIndex + blockLength, CellStatus.Empty, row))
                 return false;
-            if (!Check(previousEndIndex + 1, startIndex, CellStatus.Fill, row))
+            if (!CheckBadCellsAbscence(previousEndIndex, startIndex, CellStatus.Fill, row))
                 return false;
-            if (blockIndex < rowNumbers.Length - 1)
+            if (blockIndex == rowNumbers.Length - 1)
             {
-                bool res = false;
-                int afterBlockIdx = startIndex + blockLength + 1;
-                int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
-                for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
-                {
-                    if (CanArrangeBlock(blockIndex + 1, nextStart, startIndex + blockLength - 1, possibleFill, possibleEmpty, row, rowNumbers))
-                    {
-                        res = true;
-                        Draw(startIndex, startIndex + blockLength, possibleFill);
-                        Draw(previousEndIndex + 1, startIndex, possibleEmpty);
-                    }
-                }
-                return res;
+                if (!CheckBadCellsAbscence(startIndex + blockLength, row.Length, CellStatus.Fill, row))
+                    return false;
+                Draw(startIndex + blockLength, row.Length, possibleEmpty);
+                Draw(startIndex, startIndex + blockLength, possibleFill);
+                Draw(previousEndIndex, startIndex, possibleEmpty);
+                return true;
             }
-            if (!Check(startIndex + blockLength, row.Length, CellStatus.Fill, row))
-                return false;
-            Draw(startIndex + blockLength, row.Length, possibleEmpty);
-            Draw(startIndex, startIndex + blockLength, possibleFill);
-            Draw(previousEndIndex + 1, startIndex, possibleEmpty);
-            return true;
+            bool res = false;
+            int afterBlockIdx = startIndex + blockLength + 1;
+            int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
+            for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
+            {
+                if (CanArrangeBlock(blockIndex + 1, nextStart, startIndex + blockLength, possibleFill, possibleEmpty, row, rowNumbers))
+                {
+                    res = true;
+                    Draw(startIndex, startIndex + blockLength, possibleFill);
+                    Draw(previousEndIndex, startIndex, possibleEmpty);
+                }
+            }
+            return res;
 
 //            var blockLength = 0;
 //            if (blockIndex != -1)
