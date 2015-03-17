@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using NUnit.Framework;
 
 namespace JapaneseCrossword
 {
@@ -27,9 +28,88 @@ namespace JapaneseCrossword
             {
                 return SolutionStatus.IncorrectCrossword;
             }
+            var isFullSolve = CheckForFullAnswer();
+            if (isFullSolve && !CheckForCorrectAnswer())
+                return SolutionStatus.IncorrectCrossword;
+            if (isFullSolve && !CheckForCorrectAnswer1())
+                return SolutionStatus.IncorrectCrossword;
             try { crossword.WriteCrosswordToFile(outputFilePath); }
             catch { return SolutionStatus.BadOutputFilePath; }
+            if (!isFullSolve)
+                return SolutionStatus.PartiallySolved;
             return SolutionStatus.Solved;
+        }
+
+        private bool CheckForFullAnswer()
+        {
+            foreach (var e in crossword.Field)
+            {
+                if (e == CellStatus.Unknown)
+                    return false;
+            }
+            return true;
+        }
+
+        private bool CheckForCorrectAnswer()
+        {
+            for (int i = 0; i < crossword.RowsCount; i++)
+            {
+                int j = 0;
+                while (crossword.Field[i, j] == CellStatus.Empty)
+                    j++;
+                for (int numberIdx = 0; numberIdx < crossword.NumbersInRows[i].Count; numberIdx++)
+                {
+                    int count = AddCounter(i, ref j, CellStatus.Fill);
+                    if (crossword.NumbersInRows[i][numberIdx] != count)
+                        return false;
+                    count = AddCounter(i, ref j, CellStatus.Empty);
+                    if (count < 1 && numberIdx != crossword.NumbersInRows[i].Count - 1)
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        private int AddCounter(int i, ref int j, CellStatus status)
+        {
+            int count = 0;
+            while (j < crossword.ColumnsCount && crossword.Field[i, j] == status)
+            {
+                count++;
+                j++;
+            }
+            return count;
+        }
+
+        private bool CheckForCorrectAnswer1()
+        {
+            for (int i = 0; i < crossword.ColumnsCount; i++)
+            {
+                int j = 0;
+                while (crossword.Field[j, i] == CellStatus.Empty)
+                    j++;
+                for (int numberIdx = 0; numberIdx < crossword.NumbersInColumns[i].Count; numberIdx++)
+                {
+                    int count = AddCounter1(i, ref j, CellStatus.Fill);
+                    if (crossword.NumbersInColumns[i][numberIdx] != count)
+                        return false;
+                    count = AddCounter1(i, ref j, CellStatus.Empty);
+                    if (count < 1 && numberIdx != crossword.NumbersInColumns[i].Count - 1)
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        private int AddCounter1(int i, ref int j, CellStatus status)
+        {
+            int count = 0;
+            while (j < crossword.RowsCount && crossword.Field[j, i] == status)
+            {
+                count++;
+                j++;
+            }
+            return count;
         }
 
         private bool ShouldRefreshPerpendicularLine(int lineIdx, int i, CellStatus linei, bool isColumn)
@@ -70,8 +150,7 @@ namespace JapaneseCrossword
         {
             var possibleFill = new bool[row.Length];
             var possibleEmpty = new bool[row.Length];
-//            CanArrangeBlock(-1, -1, possibleFill, possibleEmpty, row, rowNumbers);
-            for(int i = 0; i < row.Length - rowNumbers[0] + 1; i++)
+            for (int i = 0; i < row.Length - rowNumbers[0] + 1; i++)
                 CanArrangeBlock(0, i, 0, possibleFill, possibleEmpty, row, rowNumbers);
             for (int i = 0; i < row.Length; i++)
             {
@@ -102,84 +181,33 @@ namespace JapaneseCrossword
         private bool CanArrangeBlock(int blockIndex, int startIndex, int previousEndIndex, bool[] possibleFill, bool[] possibleEmpty, CellStatus[] row, int[] rowNumbers)
         {
             var blockLength = rowNumbers[blockIndex];
-            if (!CheckBadCellsAbscence(startIndex, startIndex + blockLength, CellStatus.Empty, row))
+            var endIndex = startIndex + blockLength;
+            if (!CheckBadCellsAbscence(startIndex, endIndex, CellStatus.Empty, row))
                 return false;
             if (!CheckBadCellsAbscence(previousEndIndex, startIndex, CellStatus.Fill, row))
                 return false;
             if (blockIndex == rowNumbers.Length - 1)
             {
-                if (!CheckBadCellsAbscence(startIndex + blockLength, row.Length, CellStatus.Fill, row))
+                if (!CheckBadCellsAbscence(endIndex, row.Length, CellStatus.Fill, row))
                     return false;
-                Draw(startIndex + blockLength, row.Length, possibleEmpty);
-                Draw(startIndex, startIndex + blockLength, possibleFill);
+                Draw(endIndex, row.Length, possibleEmpty);
+                Draw(startIndex, endIndex, possibleFill);
                 Draw(previousEndIndex, startIndex, possibleEmpty);
                 return true;
             }
             bool res = false;
-            int afterBlockIdx = startIndex + blockLength + 1;
+            int afterBlockIdx = endIndex + 1;
             int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
             for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
             {
-                if (CanArrangeBlock(blockIndex + 1, nextStart, startIndex + blockLength, possibleFill, possibleEmpty, row, rowNumbers))
+                if (CanArrangeBlock(blockIndex + 1, nextStart, endIndex, possibleFill, possibleEmpty, row, rowNumbers))
                 {
                     res = true;
-                    Draw(startIndex, startIndex + blockLength, possibleFill);
+                    Draw(startIndex, endIndex, possibleFill);
                     Draw(previousEndIndex, startIndex, possibleEmpty);
                 }
             }
             return res;
-
-//            var blockLength = 0;
-//            if (blockIndex != -1)
-//            {
-//                blockLength = rowNumbers[blockIndex];
-//                if (!NotHaveSmthCells(startIndex, row, startIndex + blockLength, CellStatus.Empty))
-//                    return false;
-//            }
-//            if (blockIndex < rowNumbers.Length - 1)
-//            {
-//                bool res = false;
-//                int afterBlockIdx = startIndex + blockLength + 1;
-//                int lastNextBlockFirstPosition = row.Length - rowNumbers[blockIndex + 1] + 1;
-//                for (int nextStart = afterBlockIdx; nextStart < lastNextBlockFirstPosition; nextStart++)
-//                {
-//                    if(nextStart != 0 && row[nextStart - 1] == CellStatus.Fill)
-//                        break;
-//                    if (CanArrangeBlock(blockIndex + 1, nextStart, possibleFill, possibleEmpty, row, rowNumbers))
-//                    {
-//                        res = true;
-//                        if (blockIndex != -1)
-//                        {
-//                            RefreshState(startIndex, possibleFill, startIndex + blockLength);
-//                            RefreshState(startIndex + blockLength, possibleEmpty, nextStart);
-//                        }
-//                        else
-//                            RefreshState(0, possibleEmpty, nextStart);
-//                    }
-//                }
-//                return res;
-//            }
-//            if (!NotHaveSmthCells(startIndex + blockLength, row, row.Length, CellStatus.Fill))
-//                    return false;
-//            RefreshState(startIndex, possibleFill, startIndex + blockLength);
-//            RefreshState(startIndex + blockLength, possibleEmpty, row.Length);
-//            return true;
-        }
-
-        private static bool NotHaveSmthCells(int startIndex, CellStatus[] row, int length, CellStatus status)
-        {
-            for (int i = startIndex; i < length; i++)
-            {
-                if (row[i] == status)
-                    return false;
-            }
-            return true;
-        }
-
-        private static void RefreshState(int startIndex, bool[] possibleSmth, int length)
-        {
-            for (int i = startIndex; i < length; i++)
-                possibleSmth[i] = true;
         }
     }
 }
