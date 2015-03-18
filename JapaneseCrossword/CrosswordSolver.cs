@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 
 namespace JapaneseCrossword
@@ -7,7 +9,7 @@ namespace JapaneseCrossword
     public class CrosswordSolver : ICrosswordSolver
     {
         private Crossword crossword;
-        private Queue<Tuple<int, bool>> tasksQueue; 
+        private Queue<Tuple<int, bool>> tasksQueue;
 
         public SolutionStatus Solve(string inputFilePath, string outputFilePath)
         {
@@ -29,9 +31,7 @@ namespace JapaneseCrossword
                 return SolutionStatus.IncorrectCrossword;
             }
             var isFullSolve = CheckForFullAnswer();
-            if (isFullSolve && !CheckForCorrectAnswer())
-                return SolutionStatus.IncorrectCrossword;
-            if (isFullSolve && !CheckForCorrectAnswer1())
+            if (isFullSolve && !CheckCrossword())
                 return SolutionStatus.IncorrectCrossword;
             try { crossword.WriteCrosswordToFile(outputFilePath); }
             catch { return SolutionStatus.BadOutputFilePath; }
@@ -50,66 +50,57 @@ namespace JapaneseCrossword
             return true;
         }
 
-        private bool CheckForCorrectAnswer()
+        private bool CheckCrossword()
         {
-            for (int i = 0; i < crossword.RowsCount; i++)
+            return CheckForCorrectAnswer(true, crossword.RowsCount, crossword.ColumnsCount)
+                && CheckForCorrectAnswer(false, crossword.ColumnsCount, crossword.RowsCount);
+        }
+
+        private bool CheckForCorrectAnswer(bool isHorisontal, int dimensionalOne, int dimensionalTwo)
+        {
+            for (int i = 0; i < dimensionalOne; i++)
             {
-                int j = 0;
-                while (crossword.Field[i, j] == CellStatus.Empty)
-                    j++;
-                for (int numberIdx = 0; numberIdx < crossword.NumbersInRows[i].Count; numberIdx++)
+                var firstPoint = getPoint(i, 0, isHorisontal);
+                var currentCell = crossword.Field[firstPoint.Item1, firstPoint.Item2];
+                int count = 1;
+                int fillBlockIndex = 0;
+                for (int j = 1; j < dimensionalTwo; j++)
                 {
-                    int count = AddCounter(i, ref j, CellStatus.Fill);
-                    if (crossword.NumbersInRows[i][numberIdx] != count)
-                        return false;
-                    count = AddCounter(i, ref j, CellStatus.Empty);
-                    if (count < 1 && numberIdx != crossword.NumbersInRows[i].Count - 1)
-                        return false;
+                    var a = getPoint(i, j, isHorisontal);
+                    var cell = crossword.Field[a.Item1, a.Item2];
+                    if (cell == currentCell)
+                        count++;
+                    else
+                    {
+                        if (currentCell == CellStatus.Fill)
+                        {
+                            if (count != GetNumberOfFillCell(isHorisontal, i, fillBlockIndex))
+                                return false;
+                            fillBlockIndex++;
+                        }
+                        count = 1;
+                    }
+                    currentCell = cell;
                 }
+                if (currentCell == CellStatus.Fill)
+                    if (count != GetNumberOfFillCell(isHorisontal, i, fillBlockIndex))
+                        return false;
             }
             return true;
         }
 
-        private int AddCounter(int i, ref int j, CellStatus status)
+        private int GetNumberOfFillCell(bool isHorisontal, int i, int fillBlockIndex)
         {
-            int count = 0;
-            while (j < crossword.ColumnsCount && crossword.Field[i, j] == status)
-            {
-                count++;
-                j++;
-            }
-            return count;
+            if (isHorisontal)
+                return crossword.NumbersInRows[i][fillBlockIndex];
+            return crossword.NumbersInColumns[i][fillBlockIndex];
         }
 
-        private bool CheckForCorrectAnswer1()
+        private Tuple<int, int> getPoint(int x, int y, bool isHorisontal)
         {
-            for (int i = 0; i < crossword.ColumnsCount; i++)
-            {
-                int j = 0;
-                while (crossword.Field[j, i] == CellStatus.Empty)
-                    j++;
-                for (int numberIdx = 0; numberIdx < crossword.NumbersInColumns[i].Count; numberIdx++)
-                {
-                    int count = AddCounter1(i, ref j, CellStatus.Fill);
-                    if (crossword.NumbersInColumns[i][numberIdx] != count)
-                        return false;
-                    count = AddCounter1(i, ref j, CellStatus.Empty);
-                    if (count < 1 && numberIdx != crossword.NumbersInColumns[i].Count - 1)
-                        return false;
-                }
-            }
-            return true;
-        }
-
-        private int AddCounter1(int i, ref int j, CellStatus status)
-        {
-            int count = 0;
-            while (j < crossword.RowsCount && crossword.Field[j, i] == status)
-            {
-                count++;
-                j++;
-            }
-            return count;
+            if (isHorisontal)
+                return new Tuple<int, int>(x, y);
+            return new Tuple<int, int>(y, x);
         }
 
         private bool ShouldRefreshPerpendicularLine(int lineIdx, int i, CellStatus linei, bool isColumn)
@@ -162,7 +153,7 @@ namespace JapaneseCrossword
             }
         }
 
-        private bool CheckBadCellsAbscence(int left , int right , CellStatus badCelltype, CellStatus[] row)
+        private bool CheckBadCellsAbscence(int left, int right, CellStatus badCelltype, CellStatus[] row)
         {
             for (int i = left; i < right; i++)
             {
