@@ -17,7 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPLBasics", "TPLBasics\TPLB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncSamples", "AsyncSamples\AsyncSamples.csproj", "{EC702A56-4BCC-4716-B237-236CBDCF54A5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HashServer", "HashServer\HashServer.csproj", "{26E99604-5E67-4F52-8C0E-63879569C3B0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxiServer", "HashServer\ProxiServer.csproj", "{26E99604-5E67-4F52-8C0E-63879569C3B0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Patterns", "Patterns\Patterns.csproj", "{9C249655-CDD8-4D41-B007-61D3716C8B92}"
 EndProject
