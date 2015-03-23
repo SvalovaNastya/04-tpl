@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{26E99604-5E67-4F52-8C0E-63879569C3B0}</ProjectGuid>
+    <ProjectGuid>{D98B6F9E-4DB4-488B-A337-A68402757562}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>HashServer</RootNamespace>

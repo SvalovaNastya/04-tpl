@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using log4net;
 using log4net.Config;
-using System.IO;
-using System.Diagnostics;
 
 namespace HashServer
 {
@@ -15,15 +14,18 @@ namespace HashServer
 	{
 		static void Main(string[] args)
 		{
-
-
 			XmlConfigurator.Configure();
 			try
 			{
-				var listener = new Listener(port, "method", OnContextAsync);
-				listener.Start();
+			    var listeners = Enumerable.Range(0, 5).Select(x => new Listener(ports[x], "method", OnContextAsync)).ToArray();
+			    for (int i = 0; i < listeners.Length; i++)
+			    {
+			        listeners[i].Start();
+				    log.InfoFormat("Server started on port{0}!", ports[i]);
+			    }
+//				var listener = new Listener(port, "method", OnContextAsync);
+//				listener.Start();
 
-				log.InfoFormat("Server started!");
 				new ManualResetEvent(false).WaitOne();
 			}
 			catch(Exception e)
@@ -41,15 +43,13 @@ namespace HashServer
 			log.InfoFormat("{0}: received {1} from {2}", requestId, query, remoteEndPoint);
 			context.Request.InputStream.Close();
 
-            var ms = await DownloadWebPageAsync(query);
-            var encryptedBytes = ms.ToArray();
+			var hash = Convert.ToBase64String(CalcHash(Encoding.UTF8.GetBytes(query)));
+			var encryptedBytes = Encoding.UTF8.GetBytes(hash);
 
 			await context.Response.OutputStream.WriteAsync(encryptedBytes, 0, encryptedBytes.Length);
 			context.Response.OutputStream.Close();
-			log.InfoFormat("{0}: {1} sent back to {2}", requestId, encryptedBytes.ToString(), remoteEndPoint);
+			log.InfoFormat("{0}: {1} sent back to {2}", requestId, hash, remoteEndPoint);
 		}
-
-
 
 		private static byte[] CalcHash(byte[] data)
 		{
@@ -57,32 +57,15 @@ namespace HashServer
 				return hasher.ComputeHash(data);
 		}
 
-        public static async Task<MemoryStream> DownloadWebPageAsync(string query)
-        {
-            var sw = Stopwatch.StartNew();
-            var request = CreateRequest("http://10.10.80.108:20000/method?query=" + query);
-            var response = await request.GetResponseAsync();
-            using (var stream = response.GetResponseStream())
-            {
-                var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                Console.WriteLine("Got {0} bytes in {1} ms", ms.Position, sw.ElapsedMilliseconds);
-                return ms;
-            }
-        }
-
-        private static HttpWebRequest CreateRequest(string uriStr, int timeout = 30 * 1000)
-        {
-            var request = WebRequest.CreateHttp(uriStr);
-            request.Timeout = timeout;
-            request.Proxy = null;
-            request.KeepAlive = true;
-            request.ServicePoint.UseNagleAlgorithm = false;
-            request.ServicePoint.ConnectionLimit = 100500;
-            return request;
-        }
-
-		private const int port = 20000;
+		private static readonly int[] ports = 
+	    {
+	        20000,
+	        20001,
+	        20002,
+	        20003,
+	        20004,
+	        20005
+	    };
 		private static readonly byte[] Key = Encoding.UTF8.GetBytes("Контур.Шпора");
 		private static readonly ILog log = LogManager.GetLogger(typeof(Program));
 	}

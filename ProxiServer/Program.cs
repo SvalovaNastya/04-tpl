@@ -11,8 +11,10 @@ namespace ProxiServer
 {
     internal class Program
     {
-        private const int port = 20000;
+        private const int port = 19999;
         private static readonly ILog log = LogManager.GetLogger(typeof (Program));
+        private static Random r = new Random();
+        private static readonly string[] ports = {"20000", "20001", "20002", "20003", "20004"};
 
         private static void Main(string[] args)
         {
@@ -40,7 +42,9 @@ namespace ProxiServer
             log.InfoFormat("{0}: received {1} from {2}", requestId, query, remoteEndPoint);
             context.Request.InputStream.Close();
 
-            MemoryStream ms = await DownloadWebPageAsync(query);
+            var curport = ports[r.Next(5)];
+            log.InfoFormat("I sent request to {0}", curport);
+            MemoryStream ms = await DownloadWebPageAsync(query, curport);
             byte[] encryptedBytes = ms.ToArray();
 
             await context.Response.OutputStream.WriteAsync(encryptedBytes, 0, encryptedBytes.Length);
@@ -48,10 +52,10 @@ namespace ProxiServer
             log.InfoFormat("{0}: {1} sent back to {2}", requestId, encryptedBytes, remoteEndPoint);
         }
 
-        public static async Task<MemoryStream> DownloadWebPageAsync(string query)
+        public static async Task<MemoryStream> DownloadWebPageAsync(string query, string curport)
         {
             Stopwatch sw = Stopwatch.StartNew();
-            HttpWebRequest request = CreateRequest("http://10.10.80.108:20000/method?query=" + query);
+            HttpWebRequest request = CreateRequest(String.Format("http://10.113.119.35:{0}/method?query={1}", curport, query));
             WebResponse response = await request.GetResponseAsync();
             using (Stream stream = response.GetResponseStream())
             {
