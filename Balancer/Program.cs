@@ -1,20 +1,23 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using log4net;
 using log4net.Config;
 
-namespace ProxiServer
+namespace Balancer
 {
-    internal class Program
+    class Program
     {
         private const int port = 19999;
-        private static readonly ILog log = LogManager.GetLogger(typeof (Program));
+        private static readonly ILog log = LogManager.GetLogger(typeof(Program));
         private static Random r = new Random();
-        private static readonly string[] ports = {"20000", "20001", "20002", "20003", "20004"};
+        private static readonly string[] ports = { "20000", "20001", "20002", "20003", "20004" };
 
         private static void Main(string[] args)
         {

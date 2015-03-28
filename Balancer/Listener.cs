@@ -4,23 +4,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using log4net;
 
-namespace ProxiServer
+namespace Balancer
 {
     public class Listener
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (Program));
-        private readonly HttpListener listener;
+        private HttpListener listener;
 
         public Listener(int port, string suffix, Func<HttpListenerContext, Task> callbackAsync)
         {
             ThreadPool.SetMinThreads(8, 8);
             CallbackAsync = callbackAsync;
             listener = new HttpListener();
-            listener.Prefixes.Add(string.Format("http://+:{0}{1}/", port,
-                suffix != null ? "/" + suffix.TrimStart('/') : ""));
+            listener.Prefixes.Add(string.Format("http://+:{0}{1}/", port, suffix != null ? "/" + suffix.TrimStart('/') : ""));
         }
-
-        private Func<HttpListenerContext, Task> CallbackAsync { get; set; }
 
         public void Start()
         {
@@ -34,12 +30,11 @@ namespace ProxiServer
             {
                 try
                 {
-                    HttpListenerContext context = await listener.GetContextAsync();
-
+                    var context = await listener.GetContextAsync();
                     Task.Run(
                         async () =>
                         {
-                            HttpListenerContext ctx = context;
+                            var ctx = context;
                             try
                             {
                                 await CallbackAsync(ctx);
@@ -53,7 +48,7 @@ namespace ProxiServer
                                 ctx.Response.Close();
                             }
                         }
-                        );
+                    );
                 }
                 catch (Exception e)
                 {
@@ -61,5 +56,9 @@ namespace ProxiServer
                 }
             }
         }
+
+        private Func<HttpListenerContext, Task> CallbackAsync { get; set; }
+
+        private static readonly ILog log = LogManager.GetLogger(typeof(Program));
     }
 }
